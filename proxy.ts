@@ -14,7 +14,6 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // Check for NextAuth session cookie directly
   const sessionToken =
     req.cookies.get("__Secure-next-auth.session-token")?.value ||
     req.cookies.get("next-auth.session-token")?.value ||
@@ -27,7 +26,7 @@ export async function proxy(req: NextRequest) {
 
   return NextResponse.next()
 }
-
+//
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 }
