@@ -1,28 +1,28 @@
 import { NextResponse } from "next/server"
-import { getToken } from "next-auth/jwt"
 import type { NextRequest } from "next/server"
 
-export async function proxy(req: NextRequest) {
-  const token = await getToken({
-    req,
-    secret: process.env.NEXTAUTH_SECRET,
-  })
-
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // Always allow these through
   if (
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
+    pathname === "/favicon.ico" ||
     pathname === "/login" ||
-    pathname === "/logout" ||
-    pathname === "/favicon.ico"
+    pathname === "/logout"
   ) {
     return NextResponse.next()
   }
 
-  // Redirect to login if not authenticated
-  if (!token) {
+  // Check for NextAuth session cookie directly
+  const sessionToken =
+    req.cookies.get("__Secure-next-auth.session-token")?.value ||
+    req.cookies.get("next-auth.session-token")?.value ||
+    req.cookies.get("__Host-next-auth.csrf-token")?.value
+
+  // Not logged in → redirect to login
+  if (!sessionToken) {
     return NextResponse.redirect(new URL("/login", req.url))
   }
 
