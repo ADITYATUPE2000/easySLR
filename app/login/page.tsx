@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect} from "react"
+import { useState, useEffect } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Box from "@mui/material/Box"
@@ -16,11 +16,11 @@ import Tab from "@mui/material/Tab"
 
 export default function LoginPage() {
   const router = useRouter()
-  const [tab, setTab]         = useState(0) // 0 = login, 1 = register
-  const [name, setName]       = useState("")
-  const [email, setEmail]     = useState("")
+  const [tab, setTab] = useState(0) // 0 = login, 1 = register
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError]     = useState("")
+  const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -29,27 +29,37 @@ export default function LoginPage() {
     setMounted(true)
   }, [])
 
-    if (!mounted) return null
+  if (!mounted) return null
 
   async function handleLogin() {
     setError("")
     setLoading(true)
 
-    const res = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    })
+    try {
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+        callbackUrl: "/",
+      })
 
-    setLoading(false)
-
-    if (res?.error) {
-      setError(res.error === "CredentialsSignin"
-        ? "Incorrect email or password"
-        : res.error
-      )
-    } else {
-      router.push("/")
+      if (res?.error) {
+        setError(
+          res.error === "CredentialsSignin"
+            ? "Incorrect email or password"
+            : res.error
+        )
+        setLoading(false)
+      } else if (res?.ok) {
+        window.location.href = "/"  // ← force hard redirect instead of router.push
+      } else {
+        setError("Something went wrong. Please try again.")
+        setLoading(false)
+      }
+    } catch (err) {
+      console.error("Login error:", err)
+      setError("Something went wrong. Please try again.")
+      setLoading(false)
     }
   }
 
@@ -58,32 +68,40 @@ export default function LoginPage() {
     setSuccess("")
     setLoading(true)
 
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
-    })
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      })
 
-    const data = await res.json()
-    setLoading(false)
+      const data = await res.json()
 
-    if (!res.ok) {
-      setError(data.error)
-      return
-    }
+      if (!res.ok) {
+        setError(data.error)
+        setLoading(false)
+        return
+      }
 
-    // Auto login after register
-    const loginRes = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    })
+      // Auto login after register
+      const loginRes = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+        callbackUrl: "/",
+      })
 
-    if (loginRes?.error) {
-      setError("Account created but login failed. Please try logging in.")
-      setTab(0)
-    } else {
-      router.push("/")
+      if (loginRes?.ok) {
+        window.location.href = "/"
+      } else {
+        setError("Account created! Please sign in.")
+        setTab(0)
+        setLoading(false)
+      }
+    } catch (err) {
+      console.error("Register error:", err)
+      setError("Something went wrong. Please try again.")
+      setLoading(false)
     }
   }
 
@@ -151,7 +169,7 @@ export default function LoginPage() {
         </Tabs>
 
         {/* Error / Success alerts */}
-        {error   && <Alert severity="error"   sx={{ mb: 2 }}>{error}</Alert>}
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
         {/* Sign In form */}
